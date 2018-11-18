@@ -1,4 +1,4 @@
-package com.abc5w.datacenter.provider.service.annotation;
+package com.example.demo.component.annotation;
 
 import java.lang.annotation.*;
 

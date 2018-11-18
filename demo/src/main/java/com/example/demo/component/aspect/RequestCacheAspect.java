@@ -1,10 +1,8 @@
-package com.abc5w.datacenter.provider.service.aspest;
+package com.example.demo.component.aspect;
 
-import com.abc5w.datacenter.provider.service.cache.RedisService;
-import com.abc5w.datacenter.provider.service.annotation.RequestCache;
-import com.google.gson.Gson;
-import net.p5w.common.util.MD5Util;
-import net.sf.json.JSONObject;
+import com.example.demo.component.annotation.RequestCache;
+import com.example.demo.component.util.MD5Util;
+import com.example.demo.service.RedisService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.*;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -39,13 +37,17 @@ public class RequestCacheAspect {
      */
     private String cacheKeyPre = "RequsetCache:";
 
-    @Autowired
-    RedisService redisService;
-
-    @Pointcut("@annotation(com.abc5w.datacenter.provider.service.annotation.RequestCache)")
+    /**
+     * 定义切面
+     */
+//    @Pointcut("execution(* com.example.demo.web.TestController.*(..))")
+    @Pointcut("@annotation(com.example.demo.component.annotation.RequestCache)")
     public void cache() {
 
     }
+
+    @Autowired
+    RedisService redisService;
 
     /**
      * 环绕通知
@@ -85,27 +87,18 @@ public class RequestCacheAspect {
         return result;
     }
 
+
+
+
     /**
-     * 检验返回值是否有效
-     * 目前校验规则：返回值状态码200 目前适用于PublicServiceImpl、CppInfoServiceImpl
+     * 判断当前结果是否需要缓存
      * @param result
      * @return
      */
     private boolean checkResult(Object result){
-        Gson gson = new Gson();
-        try{
-            String json = (String)result;
-            JSONObject jsonObject = gson.fromJson(json,JSONObject.class);
-            //注意：反序列化时 jsonObject.get("status")转为dubble了
-            Double status = Double.valueOf(jsonObject.get("status").toString());
-            if(200-status != 0.0){//不是正确的状态码
-                return false;
-            }
-            return true;
-        }catch (Exception e){
-            logger.error("checkResult Exception",e);
-            return false;
-        }
+        //todo:判断当前结果是否需要缓存（例如：异常结果不需要缓存）
+
+        return true;
     }
 
     /**
@@ -127,4 +120,52 @@ public class RequestCacheAspect {
         logger.info("getMd5Url url="+url+" md5Url="+md5Url);
         return md5Url;
     }
+
+    /**
+     * 环绕通知
+     * @param joinPoint
+     * @return
+     * @throws Throwable
+     */
+//    @Around("cache()")
+    public Object doAround2(ProceedingJoinPoint joinPoint) throws Throwable {
+        if(!OPEN){
+            return joinPoint.proceed();
+        }
+        logger.info("doAround2...");
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = attributes.getRequest();
+        if(!"GET".equals(request.getMethod())){//只对GET请求处理
+            return joinPoint.proceed();
+        }
+        //GET请求链接
+        String url = request.getRequestURL().toString();
+        String queryStr = request.getQueryString();
+        if(queryStr != null){
+            url += "?" + queryStr;
+        }
+        String key = getMd5Url(url);
+        Object value = redisService.get(key);
+
+        //使用双重检查锁
+        if(value != null){
+            logger.info("第一次检查 key: "+key+" in cache has value!");
+            return value;
+        }
+        synchronized (this){
+            value = redisService.get(key);
+            if(value != null){
+                logger.info("第二次检查 key: "+key+" in cache has value!");
+                return value;
+            }
+            Object result = joinPoint.proceed();// result的值就是被拦截方法的返回值
+            if(result != null && checkResult(result)){
+                long time = getRequestCacheTime(joinPoint);
+                redisService.set(key,result,time*60L);
+                logger.info("setCache key="+key+" value="+result);
+            }
+            return result;
+        }
+    }
+
 }

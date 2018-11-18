@@ -1,5 +1,6 @@
 package com.example.demo.web;
 
+import com.example.demo.component.annotation.RequestCache;
 import com.example.demo.component.common.vo.JsonResult;
 import com.example.demo.component.constant.RedisKeyPrefix;
 import com.example.demo.dao.StudentMapper;
@@ -41,4 +42,13 @@ public class TestController {
         redisService.set(key,student);
         return JsonResult.okResult(studentMapper.queryStudent(id));
     }
+
+    @RequestCache
+    @GetMapping(value = "/getStudent3")
+    public String getStudent3(String id){
+        logger.info("getStudent3 invoked! id="+id);
+        Student student = studentMapper.queryStudent(id);
+        return JsonResult.okResult(student);
+    }
+
 }
