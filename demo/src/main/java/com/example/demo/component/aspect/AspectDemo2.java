@@ -1,6 +1,7 @@
 package com.example.demo.component.aspect;
 
 import com.example.demo.component.annotation.RequestCache;
+import com.example.demo.component.constant.RedisKeyPrefix;
 import com.example.demo.component.util.MD5Util;
 import com.example.demo.service.RedisService;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -15,6 +16,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 使用AOP中的环绕通知,实现缓存查找和保存
@@ -23,24 +26,22 @@ import javax.servlet.http.HttpServletRequest;
 @Aspect
 @Component
 @Order(-5)
-public class RequestCacheAspect {
+public class AspectDemo2 {
 
-    private Logger logger = LoggerFactory.getLogger(RequestCacheAspect.class);
+    private Logger logger = LoggerFactory.getLogger(AspectDemo2.class);
 
     /**
      * 是否开启拦截标识
      */
     private boolean OPEN = true;
 
-    /**
-     * RequestCache 缓存key的前缀
-     */
-    private String cacheKeyPre = "RequsetCache:";
+    private static Lock lock  = new ReentrantLock();
+
 
     /**
      * 定义切面
      */
-//    @Pointcut("execution(* com.example.demo.web.TestController.*(..))")
+//    @Pointcut("execution(* com.example.demo.web.AspectDemoController2.*(..))")
     @Pointcut("@annotation(com.example.demo.component.annotation.RequestCache)")
     public void cache() {
 
@@ -116,7 +117,7 @@ public class RequestCacheAspect {
     }
 
     private String getMd5Url(String url){
-        String md5Url = cacheKeyPre + MD5Util.toMD5Str(url);
+        String md5Url = RedisKeyPrefix.STUDENT + MD5Util.toMD5Str(url);
         logger.info("getMd5Url url="+url+" md5Url="+md5Url);
         return md5Url;
     }
@@ -152,7 +153,8 @@ public class RequestCacheAspect {
             logger.info("第一次检查 key: "+key+" in cache has value!");
             return value;
         }
-        synchronized (this){
+        lock.lock();
+        try{
             value = redisService.get(key);
             if(value != null){
                 logger.info("第二次检查 key: "+key+" in cache has value!");
@@ -165,6 +167,11 @@ public class RequestCacheAspect {
                 logger.info("setCache key="+key+" value="+result);
             }
             return result;
+        }catch (Exception e){
+            e.printStackTrace();
+            return "error";
+        }finally {
+            lock.unlock();
         }
     }
 

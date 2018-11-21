@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class TestController {
+public class AspectDemoController2 {
 
-    private static final Logger logger = LoggerFactory.getLogger(TestController.class);
+    private static final Logger logger = LoggerFactory.getLogger(AspectDemoController2.class);
 
     @Autowired
     StudentMapper studentMapper;
@@ -39,11 +39,11 @@ public class TestController {
             return JsonResult.okResult(object);
         }
         Student student = studentMapper.queryStudent(id);
-        redisService.set(key,student);
-        return JsonResult.okResult(studentMapper.queryStudent(id));
+        redisService.set(key,student,3000L);
+        return JsonResult.okResult(student);
     }
 
-    @RequestCache
+    @RequestCache(time = 1)
     @GetMapping(value = "/getStudent3")
     public String getStudent3(String id){
         logger.info("getStudent3 invoked! id="+id);

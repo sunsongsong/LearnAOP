@@ -20,9 +20,8 @@ public class Test {
      * @throws InterruptedException
      */
     private static void latchTest() throws InterruptedException {
-        int poolSize = 100;
+        int poolSize = 10;
         final CountDownLatch start = new CountDownLatch(1);
-        final CountDownLatch end = new CountDownLatch(poolSize);
         ExecutorService exce = Executors.newFixedThreadPool(poolSize);
         for (int i = 0; i < poolSize; i++) {
             Runnable run = new Runnable() {
@@ -34,14 +33,13 @@ public class Test {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     } finally {
-                        end.countDown();
+
                     }
                 }
             };
             exce.submit(run);
         }
         start.countDown();
-        end.await();
         exce.shutdown();
     }
 
